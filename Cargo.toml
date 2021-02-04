@@ -33,14 +33,13 @@ classifier = [
 
 [dependencies]
 http = "0.2"
-hyper = { version = "0.14", default-features = false, features = ["client", "tcp", "http1", "http2"] }
-hyper-rustls = "0.22"
 once_cell = "1.5"
 pyo3 = { git = "https://github.com/PyO3/pyo3", default-features = false, features = [
     "macros",
     "extension-module",
     "nightly"
 ] }
+reqwest = { version = "0.11", default-features = false, features = ["rustls-tls"] }
 tokio = { version = "1.1", default-features = false, features = ["rt-multi-thread"] }
 
 [patch.crates-io]

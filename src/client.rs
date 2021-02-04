@@ -1,18 +1,13 @@
-use http::{response::Parts, Method, Response, Uri};
-use hyper::{
-    body::{aggregate, Buf},
-    client::HttpConnector,
-    Body, Client, Request,
-};
-use hyper_rustls::HttpsConnector;
+use http::{HeaderMap, Method, StatusCode, Version};
 use pyo3::{
     exceptions::PyValueError,
     prelude::{pyclass, pymethods},
     types::PyDict,
     IntoPy, PyObject, PyResult, Python,
 };
+use reqwest::{Client, Response, Url};
 
-use std::{convert::TryFrom, str::from_utf8};
+use std::convert::TryFrom;
 
 use crate::{
     asyncio::{create_future, set_fut_exc, set_fut_result},
@@ -22,7 +17,7 @@ use crate::{
 
 #[pyclass]
 pub struct ClientSession {
-    client: Client<HttpsConnector<HttpConnector>>,
+    client: Client,
 }
 
 #[pymethods]
@@ -31,8 +26,7 @@ impl ClientSession {
     #[new]
     #[args(kwargs = "**")]
     fn new(_kwargs: Option<&PyDict>) -> Self {
-        let https = HttpsConnector::with_native_roots();
-        let client = Client::builder().build(https);
+        let client = Client::builder().build().unwrap();
 
         Self { client }
     }
@@ -42,10 +36,6 @@ impl ClientSession {
     fn request(&self, method: &str, url: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
         let (fut, res_fut, loop_) = create_future()?;
 
-        let uri = match Uri::try_from(url) {
-            Ok(u) => u,
-            Err(e) => return Err(PyValueError::new_err(e.to_string())),
-        };
         let method = match Method::try_from(method) {
             Ok(m) => m,
             Err(e) => return Err(PyValueError::new_err(e.to_string())),
@@ -54,40 +44,11 @@ impl ClientSession {
         // TODO: Support at least params, data and json
         // TODO: Cookies and headers
 
-        let mut req = Request::builder()
-            .method(method.clone())
-            .uri(uri)
-            .body(Body::from(""))
-            .unwrap();
+        let req = self.client.request(method, url).body("").build().unwrap();
         let client = self.client.clone();
 
         RUNTIME.spawn(async move {
-            // TODO: Consider using reqwest because redirection handling is awful
-            let mut resp = client.request(req).await;
-            let mut is_final = false;
-
-            while !is_final {
-                if let Ok(r) = &resp {
-                    if r.status().is_redirection() {
-                        let mut next_url = r.headers().get("Location");
-                        if next_url.is_none() {
-                            next_url = r.headers().get("Uri");
-                        }
-                        // TODO: Don't unwrap
-                        let url = next_url.unwrap().to_str().unwrap();
-                        req = Request::builder()
-                            .method(method.clone())
-                            .uri(url)
-                            .body(Body::from(""))
-                            .unwrap();
-                        resp = client.request(req).await;
-                    } else {
-                        is_final = true;
-                    }
-                } else {
-                    is_final = true;
-                }
-            }
+            let resp = client.execute(req).await;
 
             match resp {
                 Ok(r) => {
@@ -150,16 +111,25 @@ impl ClientSession {
 
 #[pyclass]
 pub struct ClientResponse {
-    parts: Parts,
-    body: Option<Body>,
+    response: Option<Response>,
+    status: StatusCode,
+    version: Version,
+    headers: HeaderMap,
+    url: Url,
 }
 
 impl ClientResponse {
-    fn new(response: Response<Body>) -> Self {
-        let (parts, body) = response.into_parts();
+    fn new(response: Response) -> Self {
+        let status = response.status();
+        let version = response.version();
+        let headers = response.headers().to_owned();
+        let url = response.url().to_owned();
         Self {
-            parts,
-            body: Some(body),
+            response: Some(response),
+            status,
+            version,
+            headers,
+            url,
         }
     }
 }
@@ -169,21 +139,19 @@ impl ClientResponse {
     fn read(&mut self) -> PyResult<PyObject> {
         let (fut, res_fut, loop_) = create_future()?;
 
-        // TODO: Error when already taken
-        let body = match self.body.take() {
+        let body = match self.response.take() {
             Some(b) => b,
             None => return Err(Error::new_err("Response body has already been read")),
         };
 
         RUNTIME.spawn(async move {
-            let body = aggregate(body).await;
+            let body = body.bytes().await;
 
             match body {
                 Ok(b) => {
-                    let chunk = b.chunk();
                     let gil = Python::acquire_gil();
                     let py = gil.python();
-                    let _ = set_fut_result(loop_, fut, chunk.into_py(py));
+                    let _ = set_fut_result(loop_, fut, b.into_py(py));
                 }
                 Err(e) => {
                     let _ = set_fut_exc(loop_, fut, Error::new_err(e.to_string()));
@@ -197,29 +165,19 @@ impl ClientResponse {
     fn text(&mut self) -> PyResult<PyObject> {
         let (fut, res_fut, loop_) = create_future()?;
 
-        // TODO: Error when already taken
-        let body = match self.body.take() {
+        let body = match self.response.take() {
             Some(b) => b,
             None => return Err(Error::new_err("Response body has already been read")),
         };
 
         RUNTIME.spawn(async move {
-            let body = aggregate(body).await;
+            let text = body.text().await;
 
-            match body {
-                Ok(b) => {
-                    let chunk = b.chunk();
-
-                    match from_utf8(chunk) {
-                        Ok(string) => {
-                            let gil = Python::acquire_gil();
-                            let py = gil.python();
-                            let _ = set_fut_result(loop_, fut, string.into_py(py));
-                        }
-                        Err(e) => {
-                            let _ = set_fut_exc(loop_, fut, Error::new_err(e.to_string()));
-                        }
-                    }
+            match text {
+                Ok(string) => {
+                    let gil = Python::acquire_gil();
+                    let py = gil.python();
+                    let _ = set_fut_result(loop_, fut, string.into_py(py));
                 }
                 Err(e) => {
                     let _ = set_fut_exc(loop_, fut, Error::new_err(e.to_string()));
