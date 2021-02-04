@@ -13,6 +13,7 @@ use crate::{
     asyncio::{create_future, set_fut_exc, set_fut_result},
     error::Error,
     runtime::RUNTIME,
+    types::HttpVersion,
 };
 
 #[pyclass]
@@ -124,6 +125,7 @@ impl ClientResponse {
         let version = response.version();
         let headers = response.headers().to_owned();
         let url = response.url().to_owned();
+
         Self {
             response: Some(response),
             status,
@@ -186,5 +188,15 @@ impl ClientResponse {
         });
 
         Ok(res_fut)
+    }
+
+    #[getter]
+    fn status(&self) -> u16 {
+        self.status.as_u16()
+    }
+
+    #[getter]
+    fn version(&self) -> HttpVersion {
+        HttpVersion::from(self.version)
     }
 }
