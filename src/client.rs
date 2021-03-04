@@ -2,16 +2,17 @@ use http::{HeaderMap, Method, StatusCode, Version};
 use pyo3::{
     exceptions::PyValueError,
     prelude::{pyclass, pymethods},
-    types::PyDict,
-    IntoPy, PyObject, PyResult, Python,
+    types::{PyAny, PyDict},
+    AsPyPointer, IntoPy, PyObject, PyResult, Python,
 };
 use reqwest::{Client, Response, Url};
 
-use std::convert::TryFrom;
+use std::{collections::HashMap, convert::TryFrom};
 
 use crate::{
     asyncio::{create_future, set_fut_exc, set_fut_result},
     error::Error,
+    orjson::{dumps, loads},
     runtime::RUNTIME,
     types::HttpVersion,
 };
@@ -42,10 +43,42 @@ impl ClientSession {
             Err(e) => return Err(PyValueError::new_err(e.to_string())),
         };
 
-        // TODO: Support at least params, data and json
+        let url = match Url::parse(url) {
+            Ok(mut u) => {
+                if let Some(kwargs) = &kwargs {
+                    if kwargs.contains("params")? {
+                        let params = kwargs.get_item("params").unwrap();
+                        let dict: &PyDict = params.cast_as()?;
+                        let mut uri_params = u.query_pairs_mut();
+
+                        for (key, value) in dict.iter() {
+                            uri_params.append_pair(&key.to_string(), &value.to_string());
+                        }
+                    }
+                }
+
+                u
+            }
+            Err(e) => return Err(PyValueError::new_err(e.to_string())),
+        };
+
+        // TODO: Support data
         // TODO: Cookies and headers
 
-        let req = self.client.request(method, url).body("").build().unwrap();
+        let mut builder = self.client.request(method, url);
+
+        if let Some(kwargs) = kwargs {
+            if kwargs.contains("json")? {
+                let json = kwargs.get_item("json").unwrap();
+                let serialized = unsafe { dumps(json.as_ptr()) }?;
+                println!("using json: {:?}", &serialized);
+                builder = builder
+                    .body(serialized)
+                    .header("Content-Type", "application/json");
+            }
+        }
+
+        let req = builder.build().unwrap();
         let client = self.client.clone();
 
         RUNTIME.spawn(async move {
@@ -190,6 +223,46 @@ impl ClientResponse {
         Ok(res_fut)
     }
 
+    fn json(&mut self) -> PyResult<PyObject> {
+        let (fut, res_fut, loop_) = create_future()?;
+
+        let body = match self.response.take() {
+            Some(b) => b,
+            None => return Err(Error::new_err("Response body has already been read")),
+        };
+
+        RUNTIME.spawn(async move {
+            let bytes = body.bytes().await;
+
+            match bytes {
+                Ok(bytes) => {
+                    println!("before: {}", std::str::from_utf8(&bytes).unwrap());
+                    let json = unsafe { loads(&bytes) };
+                    println!("after");
+
+                    match json {
+                        Ok(json) => {
+                            let gil = Python::acquire_gil();
+                            let py = gil.python();
+                            let res: &PyAny = unsafe { py.from_owned_ptr(json) };
+                            let sr = fut.getattr(py, "set_result").unwrap();
+
+                            let _ = loop_.call_method1(py, "call_soon_threadsafe", (sr, res));
+                        }
+                        Err(e) => {
+                            let _ = set_fut_exc(loop_, fut, Error::new_err(e.to_string()));
+                        }
+                    }
+                }
+                Err(e) => {
+                    let _ = set_fut_exc(loop_, fut, Error::new_err(e.to_string()));
+                }
+            }
+        });
+
+        Ok(res_fut)
+    }
+
     #[getter]
     fn status(&self) -> u16 {
         self.status.as_u16()
@@ -198,5 +271,23 @@ impl ClientResponse {
     #[getter]
     fn version(&self) -> HttpVersion {
         HttpVersion::from(self.version)
+    }
+
+    #[getter]
+    fn url(&self) -> String {
+        self.url.to_string()
+    }
+
+    #[getter]
+    fn ok(&self) -> bool {
+        400 > self.status.as_u16()
+    }
+
+    #[getter]
+    fn headers(&self) -> HashMap<String, String> {
+        self.headers
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_str().unwrap().to_owned()))
+            .collect()
     }
 }

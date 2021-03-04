@@ -2,15 +2,15 @@
 import asyncio
 import aiohttp
 import hpyer
+import time
+
+import faulthandler
+faulthandler.enable()
 
 async def main():
-    session = aiohttp.ClientSession()
-    response = await session.get("https://python.org")
-    print(response.version)
-    response.close()
-    await session.close()
     session = hpyer.ClientSession()
-    response = await session.get("https://python.org")
-    print(response.version)
+    response = await session.post("https://httpbin.org/anything", json={"hello": "world", "please": {"not": "you"}}, params={"ay": "b"})
+    body = await response.json()
+    print(body)
 
 asyncio.run(main())

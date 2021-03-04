@@ -32,18 +32,41 @@ classifier = [
 ]
 
 [dependencies]
+associative-cache = "1"
+bytecount = { version = "0.6", default_features = false, features = [
+    "generic-simd",
+    "runtime-dispatch-simd"
+] }
 http = "0.2"
-once_cell = "1.5"
+inlinable_string = "0.1"
+itoa = { version = "0.4", default_features = false }
+once_cell = "1.7"
 pyo3 = { git = "https://github.com/PyO3/pyo3", default-features = false, features = [
     "macros",
     "extension-module",
     "nightly"
 ] }
-reqwest = { version = "0.11", default-features = false, features = ["rustls-tls"] }
-tokio = { version = "1.1", default-features = false, features = ["rt-multi-thread"] }
+reqwest = { git = "https://github.com/seanmonstar/reqwest", default-features = false, features = [
+    "rustls-tls"
+] }
+ryu = "1"
+serde = "1.0"
+serde_json = { path = "./json", default_features = false, features = ["std"] }
+smallvec = { version = "1.6", default_features = false, features = ["const_generics", "union", "specialization", "write"] }
+tokio = { version = "1.1", default-features = false, features = [
+    "rt-multi-thread"
+] }
+wyhash = "0.5"
+# And some SIMD patches
+encoding_rs = { version = "0.8", features = ["simd-accel"] }
 
 [patch.crates-io]
-hyper = { git = "https://github.com/hyperium/hyper", default-features = false, features = ["client", "tcp", "http1", "http2"] }
+hyper = { git = "https://github.com/hyperium/hyper", default-features = false, features = [
+    "client",
+    "tcp",
+    "http1",
+    "http2"
+] }
 
 [profile.release]
 codegen-units = 1
