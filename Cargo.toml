@@ -47,7 +47,8 @@ pyo3 = { git = "https://github.com/PyO3/pyo3", default-features = false, feature
     "nightly"
 ] }
 reqwest = { git = "https://github.com/seanmonstar/reqwest", default-features = false, features = [
-    "rustls-tls"
+    "rustls-tls",
+    "multipart"
 ] }
 ryu = "1"
 serde = "1.0"

@@ -9,7 +9,7 @@ faulthandler.enable()
 
 async def main():
     session = hpyer.ClientSession()
-    response = await session.post("https://httpbin.org/anything", json={"hello": "world", "please": {"not": "you"}}, params={"ay": "b"})
+    response = await session.post("https://httpbin.org/anything", json={"hello": "world", "please": {"not": "you"}}, params={"ay": "b"}, headers={"Authorization": "yolo"})
     body = await response.json()
     print(body)
 

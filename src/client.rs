@@ -5,7 +5,7 @@ use pyo3::{
     types::{PyAny, PyDict},
     AsPyPointer, IntoPy, PyObject, PyResult, Python,
 };
-use reqwest::{Client, Response, Url};
+use reqwest::{multipart::Form, Client, Response, Url};
 
 use std::{collections::HashMap, convert::TryFrom};
 
@@ -62,8 +62,7 @@ impl ClientSession {
             Err(e) => return Err(PyValueError::new_err(e.to_string())),
         };
 
-        // TODO: Support data
-        // TODO: Cookies and headers
+        // TODO: Cookies
 
         let mut builder = self.client.request(method, url);
 
@@ -75,6 +74,28 @@ impl ClientSession {
                 builder = builder
                     .body(serialized)
                     .header("Content-Type", "application/json");
+            }
+
+            if kwargs.contains("data")? {
+                let data = kwargs.get_item("data").unwrap();
+                let dict: &PyDict = data.cast_as()?;
+
+                let mut form = Form::new();
+
+                for (key, value) in dict.iter() {
+                    form = form.text(key.to_string(), value.to_string());
+                }
+
+                builder = builder.multipart(form);
+            }
+
+            if kwargs.contains("headers")? {
+                let headers = kwargs.get_item("headers").unwrap();
+                let dict: &PyDict = headers.cast_as()?;
+
+                for (key, value) in dict.iter() {
+                    builder = builder.header(&key.to_string(), value.to_string());
+                }
             }
         }
 

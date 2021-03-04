@@ -159,7 +159,12 @@ impl<'de> Visitor<'de> for JsonValue {
                 "before panic: {:?} {:?} {:?} {:?} {:?}",
                 key, dict_ptr, pykey, value, pyhash
             );
-            println!("{} {} {}", dict_ptr.is_null(), pykey.is_null(), value.as_ptr().is_null());
+            println!(
+                "{} {} {}",
+                dict_ptr.is_null(),
+                pykey.is_null(),
+                value.as_ptr().is_null()
+            );
             let thing = ffi!(_PyDict_SetItem_KnownHash(
                 dict_ptr,
                 pykey,
