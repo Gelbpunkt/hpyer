@@ -6,7 +6,6 @@ mod default;
 mod dict;
 mod int;
 mod list;
-mod numpy;
 mod serializer;
 mod str;
 mod tuple;

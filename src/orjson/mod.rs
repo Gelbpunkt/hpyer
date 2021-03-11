@@ -11,7 +11,6 @@ mod util;
 mod deserialize;
 mod exc;
 mod ffi;
-mod opt;
 mod serialize;
 pub mod typeref;
 mod unicode;
@@ -26,7 +25,7 @@ pub fn loads(obj: &[u8]) -> PyResult<*mut PyObject> {
 }
 
 pub fn dumps(args: *mut PyObject) -> PyResult<String> {
-    match serialize::serialize(args, None, 0 as opt::Opt) {
+    match serialize::serialize(args, None) {
         Ok(val) => Ok(val),
         Err(err) => Err(PyValueError::new_err(err)),
     }

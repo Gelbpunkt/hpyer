@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 use crate::orjson::{
-    exc::*, ffi::PyDict_GET_SIZE, opt::*, serialize::serializer::*, typeref::*, unicode::*,
+    exc::*, ffi::PyDict_GET_SIZE, serialize::serializer::*, typeref::*, unicode::*,
 };
 
 use serde::ser::{Serialize, SerializeMap, Serializer};
@@ -10,7 +10,6 @@ use std::ptr::NonNull;
 
 pub struct DataclassFastSerializer {
     dict: *mut pyo3::ffi::PyObject,
-    opts: Opt,
     default_calls: u8,
     recursion: u8,
     default: Option<NonNull<pyo3::ffi::PyObject>>,
@@ -19,14 +18,12 @@ pub struct DataclassFastSerializer {
 impl DataclassFastSerializer {
     pub fn new(
         dict: *mut pyo3::ffi::PyObject,
-        opts: Opt,
         default_calls: u8,
         recursion: u8,
         default: Option<NonNull<pyo3::ffi::PyObject>>,
     ) -> Self {
         DataclassFastSerializer {
             dict: dict,
-            opts: opts,
             default_calls: default_calls,
             recursion: recursion,
             default: default,
@@ -76,7 +73,6 @@ impl<'p> Serialize for DataclassFastSerializer {
 
             map.serialize_value(&PyObjectSerializer::new(
                 value,
-                self.opts,
                 self.default_calls,
                 self.recursion + 1,
                 self.default,
@@ -88,7 +84,6 @@ impl<'p> Serialize for DataclassFastSerializer {
 
 pub struct DataclassFallbackSerializer {
     ptr: *mut pyo3::ffi::PyObject,
-    opts: Opt,
     default_calls: u8,
     recursion: u8,
     default: Option<NonNull<pyo3::ffi::PyObject>>,
@@ -97,14 +92,12 @@ pub struct DataclassFallbackSerializer {
 impl DataclassFallbackSerializer {
     pub fn new(
         ptr: *mut pyo3::ffi::PyObject,
-        opts: Opt,
         default_calls: u8,
         recursion: u8,
         default: Option<NonNull<pyo3::ffi::PyObject>>,
     ) -> Self {
         DataclassFallbackSerializer {
             ptr: ptr,
-            opts: opts,
             default_calls: default_calls,
             recursion: recursion,
             default: default,
@@ -161,7 +154,6 @@ impl<'p> Serialize for DataclassFallbackSerializer {
 
             map.serialize_value(&PyObjectSerializer::new(
                 value,
-                self.opts,
                 self.default_calls,
                 self.recursion + 1,
                 self.default,

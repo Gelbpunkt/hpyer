@@ -4,17 +4,6 @@ use once_cell::unsync::Lazy;
 use pyo3::ffi::*;
 use std::{os::raw::c_char, ptr::NonNull, sync::Once};
 
-pub struct NumpyTypes {
-    pub array: *mut PyTypeObject,
-    pub float64: *mut PyTypeObject,
-    pub float32: *mut PyTypeObject,
-    pub int64: *mut PyTypeObject,
-    pub int32: *mut PyTypeObject,
-    pub int8: *mut PyTypeObject,
-    pub uint64: *mut PyTypeObject,
-    pub uint32: *mut PyTypeObject,
-    pub uint8: *mut PyTypeObject,
-}
 pub static mut HASH_SEED: u64 = 0;
 
 pub static mut NONE: *mut PyObject = 0 as *mut PyObject;
@@ -34,7 +23,6 @@ pub static mut TIME_TYPE: *mut PyTypeObject = 0 as *mut PyTypeObject;
 pub static mut TUPLE_TYPE: *mut PyTypeObject = 0 as *mut PyTypeObject;
 pub static mut UUID_TYPE: *mut PyTypeObject = 0 as *mut PyTypeObject;
 pub static mut ENUM_TYPE: *mut PyTypeObject = 0 as *mut PyTypeObject;
-pub static mut NUMPY_TYPES: Lazy<Option<NumpyTypes>> = Lazy::new(|| unsafe { load_numpy_types() });
 pub static mut FIELD_TYPE: Lazy<NonNull<PyObject>> = Lazy::new(|| unsafe { look_up_field_type() });
 
 pub static mut BYTES_TYPE: *mut PyTypeObject = 0 as *mut PyTypeObject;
@@ -124,38 +112,6 @@ unsafe fn look_up_json_exc() -> *mut PyObject {
     Py_DECREF(module_dict);
     Py_DECREF(module);
     res
-}
-
-#[cold]
-unsafe fn look_up_numpy_type(numpy_module: *mut PyObject, np_type: &str) -> *mut PyTypeObject {
-    let mod_dict = PyObject_GenericGetDict(numpy_module, std::ptr::null_mut());
-    let ptr = PyMapping_GetItemString(mod_dict, np_type.as_ptr() as *const c_char);
-    Py_XDECREF(ptr);
-    Py_XDECREF(mod_dict);
-    ptr as *mut PyTypeObject
-}
-
-#[cold]
-unsafe fn load_numpy_types() -> Option<NumpyTypes> {
-    let numpy = PyImport_ImportModule("numpy\0".as_ptr() as *const c_char);
-    if numpy.is_null() {
-        PyErr_Clear();
-        return None;
-    }
-
-    let types = Some(NumpyTypes {
-        array: look_up_numpy_type(numpy, "ndarray\0"),
-        float32: look_up_numpy_type(numpy, "float32\0"),
-        float64: look_up_numpy_type(numpy, "float64\0"),
-        int8: look_up_numpy_type(numpy, "int8\0"),
-        int32: look_up_numpy_type(numpy, "int32\0"),
-        int64: look_up_numpy_type(numpy, "int64\0"),
-        uint32: look_up_numpy_type(numpy, "uint32\0"),
-        uint64: look_up_numpy_type(numpy, "uint64\0"),
-        uint8: look_up_numpy_type(numpy, "uint8\0"),
-    });
-    Py_XDECREF(numpy);
-    types
 }
 
 #[cold]

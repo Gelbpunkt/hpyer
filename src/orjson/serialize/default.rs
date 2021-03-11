@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-use crate::orjson::{opt::*, serialize::serializer::*};
+use crate::orjson::serialize::serializer::*;
 
 use serde::ser::{Serialize, Serializer};
 use std::ffi::CStr;
@@ -16,7 +16,6 @@ fn format_err(ptr: *mut pyo3::ffi::PyObject) -> String {
 
 pub struct DefaultSerializer {
     ptr: *mut pyo3::ffi::PyObject,
-    opts: Opt,
     default_calls: u8,
     recursion: u8,
     default: Option<NonNull<pyo3::ffi::PyObject>>,
@@ -25,14 +24,12 @@ pub struct DefaultSerializer {
 impl DefaultSerializer {
     pub fn new(
         ptr: *mut pyo3::ffi::PyObject,
-        opts: Opt,
         default_calls: u8,
         recursion: u8,
         default: Option<NonNull<pyo3::ffi::PyObject>>,
     ) -> Self {
         DefaultSerializer {
             ptr: ptr,
-            opts: opts,
             default_calls: default_calls,
             recursion: recursion,
             default: default,
@@ -61,7 +58,6 @@ impl<'p> Serialize for DefaultSerializer {
                 } else {
                     let res = PyObjectSerializer::new(
                         default_obj,
-                        self.opts,
                         self.default_calls + 1,
                         self.recursion,
                         self.default,

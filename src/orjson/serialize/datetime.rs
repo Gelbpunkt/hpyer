@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-use crate::orjson::{exc::*, opt::*, typeref::*};
+use crate::orjson::{exc::*, typeref::*};
 use serde::ser::{Serialize, Serializer};
 
 pub type DateTimeBuffer = smallvec::SmallVec<[u8; 32]>;
@@ -77,18 +77,14 @@ pub enum TimeError {
 
 pub struct Time {
     ptr: *mut pyo3::ffi::PyObject,
-    opts: Opt,
 }
 
 impl Time {
-    pub fn new(ptr: *mut pyo3::ffi::PyObject, opts: Opt) -> Result<Self, TimeError> {
+    pub fn new(ptr: *mut pyo3::ffi::PyObject) -> Result<Self, TimeError> {
         if unsafe { (*(ptr as *mut pyo3::ffi::PyDateTime_Time)).hastzinfo == 1 } {
             return Err(TimeError::HasTimezone);
         }
-        Ok(Time {
-            ptr: ptr,
-            opts: opts,
-        })
+        Ok(Time { ptr: ptr })
     }
     pub fn write_buf(&self, buf: &mut DateTimeBuffer) {
         {
@@ -105,10 +101,8 @@ impl Time {
             let second = ffi!(PyDateTime_TIME_GET_SECOND(self.ptr)) as u8;
             write_double_digit!(buf, second);
         }
-        if self.opts & OMIT_MICROSECONDS == 0 {
-            let microsecond = ffi!(PyDateTime_TIME_GET_MICROSECOND(self.ptr)) as u32;
-            write_microsecond!(buf, microsecond);
-        }
+        let microsecond = ffi!(PyDateTime_TIME_GET_MICROSECOND(self.ptr)) as u32;
+        write_microsecond!(buf, microsecond);
     }
 }
 
@@ -130,15 +124,11 @@ pub enum DateTimeError {
 
 pub struct DateTime {
     ptr: *mut pyo3::ffi::PyObject,
-    opts: Opt,
 }
 
 impl DateTime {
-    pub fn new(ptr: *mut pyo3::ffi::PyObject, opts: Opt) -> Self {
-        DateTime {
-            ptr: ptr,
-            opts: opts,
-        }
+    pub fn new(ptr: *mut pyo3::ffi::PyObject) -> Self {
+        DateTime { ptr: ptr }
     }
     pub fn write_buf(&self, buf: &mut DateTimeBuffer) -> Result<(), DateTimeError> {
         let has_tz = unsafe { (*(self.ptr as *mut pyo3::ffi::PyDateTime_DateTime)).hastzinfo == 1 };
@@ -205,17 +195,11 @@ impl DateTime {
             let second = ffi!(PyDateTime_DATE_GET_SECOND(self.ptr)) as u8;
             write_double_digit!(buf, second);
         }
-        if self.opts & OMIT_MICROSECONDS == 0 {
-            let microsecond = ffi!(PyDateTime_DATE_GET_MICROSECOND(self.ptr)) as u32;
-            write_microsecond!(buf, microsecond);
-        }
-        if has_tz || self.opts & NAIVE_UTC != 0 {
+        let microsecond = ffi!(PyDateTime_DATE_GET_MICROSECOND(self.ptr)) as u32;
+        write_microsecond!(buf, microsecond);
+        if has_tz {
             if offset_second == 0 {
-                if self.opts & UTC_Z != 0 {
-                    buf.push(b'Z');
-                } else {
-                    buf.extend_from_slice(&[b'+', b'0', b'0', b':', b'0', b'0']);
-                }
+                buf.extend_from_slice(&[b'+', b'0', b'0', b':', b'0', b'0']);
             } else {
                 if offset_day == -1 {
                     // datetime.timedelta(days=-1, seconds=68400) -> -05:00

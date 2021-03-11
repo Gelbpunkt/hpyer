@@ -3,10 +3,8 @@
 use crate::orjson::{
     exc::*,
     ffi::{PyDict_GET_SIZE, PyTypeObject},
-    opt::*,
     serialize::{
-        dataclass::*, datetime::*, default::*, dict::*, int::*, list::*, numpy::*, str::*,
-        tuple::*, uuid::*,
+        dataclass::*, datetime::*, default::*, dict::*, int::*, list::*, str::*, tuple::*, uuid::*,
     },
     typeref::*,
 };
@@ -18,23 +16,12 @@ pub const RECURSION_LIMIT: u8 = 255;
 pub fn serialize(
     ptr: *mut pyo3::ffi::PyObject,
     default: Option<NonNull<pyo3::ffi::PyObject>>,
-    opts: Opt,
 ) -> Result<String, String> {
-    let obtype = pyobject_to_obtype(ptr, opts);
-    let obj = PyObjectSerializer::with_obtype(ptr, obtype, opts, 0, 0, default);
-    let res;
-    if likely!(opts & INDENT_2 != INDENT_2) {
-        res = serde_json::to_string(&obj);
-    } else {
-        res = serde_json::to_string_pretty(&obj);
-    }
+    let obtype = pyobject_to_obtype(ptr);
+    let obj = PyObjectSerializer::with_obtype(ptr, obtype, 0, 0, default);
+    let res = serde_json::to_string(&obj);
     match res {
-        Ok(mut val) => {
-            if opts & APPEND_NEWLINE != 0 {
-                val.push('\n');
-            }
-            Ok(val)
-        }
+        Ok(val) => Ok(val),
         Err(err) => Err(err.to_string()),
     }
 }
@@ -54,15 +41,13 @@ pub enum ObType {
     Tuple,
     Uuid,
     Dataclass,
-    NumpyScalar,
-    NumpyArray,
     Enum,
     StrSubclass,
     Unknown,
 }
 
 #[inline]
-pub fn pyobject_to_obtype(obj: *mut pyo3::ffi::PyObject, opts: Opt) -> ObType {
+pub fn pyobject_to_obtype(obj: *mut pyo3::ffi::PyObject) -> ObType {
     unsafe {
         let ob_type = ob_type!(obj);
         if ob_type == STR_TYPE {
@@ -79,10 +64,10 @@ pub fn pyobject_to_obtype(obj: *mut pyo3::ffi::PyObject, opts: Opt) -> ObType {
             ObType::List
         } else if ob_type == DICT_TYPE {
             ObType::Dict
-        } else if ob_type == DATETIME_TYPE && opts & PASSTHROUGH_DATETIME == 0 {
+        } else if ob_type == DATETIME_TYPE {
             ObType::Datetime
         } else {
-            pyobject_to_obtype_unlikely(obj, opts)
+            pyobject_to_obtype_unlikely(obj)
         }
     }
 }
@@ -94,12 +79,12 @@ macro_rules! is_subclass {
 }
 
 #[inline(never)]
-pub fn pyobject_to_obtype_unlikely(obj: *mut pyo3::ffi::PyObject, opts: Opt) -> ObType {
+pub fn pyobject_to_obtype_unlikely(obj: *mut pyo3::ffi::PyObject) -> ObType {
     unsafe {
         let ob_type = ob_type!(obj);
-        if ob_type == DATE_TYPE && opts & PASSTHROUGH_DATETIME == 0 {
+        if ob_type == DATE_TYPE {
             ObType::Date
-        } else if ob_type == TIME_TYPE && opts & PASSTHROUGH_DATETIME == 0 {
+        } else if ob_type == TIME_TYPE {
             ObType::Time
         } else if ob_type == TUPLE_TYPE {
             ObType::Tuple
@@ -107,30 +92,16 @@ pub fn pyobject_to_obtype_unlikely(obj: *mut pyo3::ffi::PyObject, opts: Opt) -> 
             ObType::Uuid
         } else if (*(ob_type as *mut PyTypeObject)).ob_type == ENUM_TYPE {
             ObType::Enum
-        } else if opts & PASSTHROUGH_SUBCLASS == 0
-            && is_subclass!(ob_type, Py_TPFLAGS_UNICODE_SUBCLASS)
-        {
+        } else if is_subclass!(ob_type, Py_TPFLAGS_UNICODE_SUBCLASS) {
             ObType::StrSubclass
-        } else if opts & PASSTHROUGH_SUBCLASS == 0
-            && is_subclass!(ob_type, Py_TPFLAGS_LONG_SUBCLASS)
-        {
+        } else if is_subclass!(ob_type, Py_TPFLAGS_LONG_SUBCLASS) {
             ObType::Int
-        } else if opts & PASSTHROUGH_SUBCLASS == 0
-            && is_subclass!(ob_type, Py_TPFLAGS_LIST_SUBCLASS)
-        {
+        } else if is_subclass!(ob_type, Py_TPFLAGS_LIST_SUBCLASS) {
             ObType::List
-        } else if opts & PASSTHROUGH_SUBCLASS == 0
-            && is_subclass!(ob_type, Py_TPFLAGS_DICT_SUBCLASS)
-        {
+        } else if is_subclass!(ob_type, Py_TPFLAGS_DICT_SUBCLASS) {
             ObType::Dict
-        } else if opts & PASSTHROUGH_DATACLASS == 0
-            && ffi!(PyDict_Contains((*ob_type).tp_dict, DATACLASS_FIELDS_STR)) == 1
-        {
+        } else if ffi!(PyDict_Contains((*ob_type).tp_dict, DATACLASS_FIELDS_STR)) == 1 {
             ObType::Dataclass
-        } else if opts & SERIALIZE_NUMPY != 0 && is_numpy_scalar(ob_type) {
-            ObType::NumpyScalar
-        } else if opts & SERIALIZE_NUMPY != 0 && is_numpy_array(ob_type) {
-            ObType::NumpyArray
         } else {
             ObType::Unknown
         }
@@ -140,7 +111,6 @@ pub fn pyobject_to_obtype_unlikely(obj: *mut pyo3::ffi::PyObject, opts: Opt) -> 
 pub struct PyObjectSerializer {
     ptr: *mut pyo3::ffi::PyObject,
     obtype: ObType,
-    opts: Opt,
     default_calls: u8,
     recursion: u8,
     default: Option<NonNull<pyo3::ffi::PyObject>>,
@@ -150,15 +120,13 @@ impl PyObjectSerializer {
     #[inline]
     pub fn new(
         ptr: *mut pyo3::ffi::PyObject,
-        opts: Opt,
         default_calls: u8,
         recursion: u8,
         default: Option<NonNull<pyo3::ffi::PyObject>>,
     ) -> Self {
         PyObjectSerializer {
             ptr: ptr,
-            obtype: pyobject_to_obtype(ptr, opts),
-            opts: opts,
+            obtype: pyobject_to_obtype(ptr),
             default_calls: default_calls,
             recursion: recursion,
             default: default,
@@ -169,7 +137,6 @@ impl PyObjectSerializer {
     pub fn with_obtype(
         ptr: *mut pyo3::ffi::PyObject,
         obtype: ObType,
-        opts: Opt,
         default_calls: u8,
         recursion: u8,
         default: Option<NonNull<pyo3::ffi::PyObject>>,
@@ -177,7 +144,6 @@ impl PyObjectSerializer {
         PyObjectSerializer {
             ptr: ptr,
             obtype: obtype,
-            opts: opts,
             default_calls: default_calls,
             recursion: recursion,
             default: default,
@@ -193,13 +159,13 @@ impl<'p> Serialize for PyObjectSerializer {
         match self.obtype {
             ObType::Str => StrSerializer::new(self.ptr).serialize(serializer),
             ObType::StrSubclass => StrSubclassSerializer::new(self.ptr).serialize(serializer),
-            ObType::Int => IntSerializer::new(self.ptr, self.opts).serialize(serializer),
+            ObType::Int => IntSerializer::new(self.ptr).serialize(serializer),
             ObType::None => serializer.serialize_unit(),
             ObType::Float => serializer.serialize_f64(ffi!(PyFloat_AS_DOUBLE(self.ptr))),
             ObType::Bool => serializer.serialize_bool(unsafe { self.ptr == TRUE }),
-            ObType::Datetime => DateTime::new(self.ptr, self.opts).serialize(serializer),
+            ObType::Datetime => DateTime::new(self.ptr).serialize(serializer),
             ObType::Date => Date::new(self.ptr).serialize(serializer),
-            ObType::Time => match Time::new(self.ptr, self.opts) {
+            ObType::Time => match Time::new(self.ptr) {
                 Ok(val) => val.serialize(serializer),
                 Err(TimeError::HasTimezone) => err!(TIME_HAS_TZINFO),
             },
@@ -211,30 +177,9 @@ impl<'p> Serialize for PyObjectSerializer {
                 let len = unsafe { PyDict_GET_SIZE(self.ptr) as usize };
                 if unlikely!(len == 0) {
                     serializer.serialize_map(Some(0)).unwrap().end()
-                } else if likely!(self.opts & SORT_OR_NON_STR_KEYS == 0) {
+                } else {
                     Dict::new(
                         self.ptr,
-                        self.opts,
-                        self.default_calls,
-                        self.recursion,
-                        self.default,
-                        len,
-                    )
-                    .serialize(serializer)
-                } else if self.opts & NON_STR_KEYS != 0 {
-                    DictNonStrKey::new(
-                        self.ptr,
-                        self.opts,
-                        self.default_calls,
-                        self.recursion,
-                        self.default,
-                        len,
-                    )
-                    .serialize(serializer)
-                } else {
-                    DictSortedKey::new(
-                        self.ptr,
-                        self.opts,
                         self.default_calls,
                         self.recursion,
                         self.default,
@@ -253,7 +198,6 @@ impl<'p> Serialize for PyObjectSerializer {
                 } else {
                     ListSerializer::new(
                         self.ptr,
-                        self.opts,
                         self.default_calls,
                         self.recursion,
                         self.default,
@@ -262,14 +206,10 @@ impl<'p> Serialize for PyObjectSerializer {
                     .serialize(serializer)
                 }
             }
-            ObType::Tuple => TupleSerializer::new(
-                self.ptr,
-                self.opts,
-                self.default_calls,
-                self.recursion,
-                self.default,
-            )
-            .serialize(serializer),
+            ObType::Tuple => {
+                TupleSerializer::new(self.ptr, self.default_calls, self.recursion, self.default)
+                    .serialize(serializer)
+            }
             ObType::Dataclass => {
                 if unlikely!(self.recursion == RECURSION_LIMIT) {
                     err!(RECURSION_LIMIT_REACHED)
@@ -279,7 +219,6 @@ impl<'p> Serialize for PyObjectSerializer {
                     ffi!(Py_DECREF(dict));
                     DataclassFastSerializer::new(
                         dict,
-                        self.opts,
                         self.default_calls,
                         self.recursion,
                         self.default,
@@ -289,7 +228,6 @@ impl<'p> Serialize for PyObjectSerializer {
                     unsafe { pyo3::ffi::PyErr_Clear() };
                     DataclassFallbackSerializer::new(
                         self.ptr,
-                        self.opts,
                         self.default_calls,
                         self.recursion,
                         self.default,
@@ -300,42 +238,13 @@ impl<'p> Serialize for PyObjectSerializer {
             ObType::Enum => {
                 let value = ffi!(PyObject_GetAttr(self.ptr, VALUE_STR));
                 ffi!(Py_DECREF(value));
-                PyObjectSerializer::new(
-                    value,
-                    self.opts,
-                    self.default_calls,
-                    self.recursion,
-                    self.default,
-                )
-                .serialize(serializer)
+                PyObjectSerializer::new(value, self.default_calls, self.recursion, self.default)
+                    .serialize(serializer)
             }
-            ObType::NumpyArray => match NumpyArray::new(self.ptr) {
-                Ok(val) => val.serialize(serializer),
-                Err(PyArrayError::Malformed) => err!("numpy array is malformed"),
-                Err(PyArrayError::NotContiguous) | Err(PyArrayError::UnsupportedDataType) => {
-                    if self.default.is_none() {
-                        err!("numpy array is not C contiguous; use ndarray.tolist() in default")
-                    } else {
-                        DefaultSerializer::new(
-                            self.ptr,
-                            self.opts,
-                            self.default_calls,
-                            self.recursion,
-                            self.default,
-                        )
-                        .serialize(serializer)
-                    }
-                }
-            },
-            ObType::NumpyScalar => NumpyScalar::new(self.ptr).serialize(serializer),
-            ObType::Unknown => DefaultSerializer::new(
-                self.ptr,
-                self.opts,
-                self.default_calls,
-                self.recursion,
-                self.default,
-            )
-            .serialize(serializer),
+            ObType::Unknown => {
+                DefaultSerializer::new(self.ptr, self.default_calls, self.recursion, self.default)
+                    .serialize(serializer)
+            }
         }
     }
 }

@@ -1,13 +1,12 @@
 // SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-use crate::orjson::{opt::*, serialize::serializer::*};
+use crate::orjson::serialize::serializer::*;
 
 use serde::ser::{Serialize, SerializeSeq, Serializer};
 use std::ptr::NonNull;
 
 pub struct ListSerializer {
     ptr: *mut pyo3::ffi::PyObject,
-    opts: Opt,
     default_calls: u8,
     recursion: u8,
     default: Option<NonNull<pyo3::ffi::PyObject>>,
@@ -17,7 +16,6 @@ pub struct ListSerializer {
 impl ListSerializer {
     pub fn new(
         ptr: *mut pyo3::ffi::PyObject,
-        opts: Opt,
         default_calls: u8,
         recursion: u8,
         default: Option<NonNull<pyo3::ffi::PyObject>>,
@@ -25,7 +23,6 @@ impl ListSerializer {
     ) -> Self {
         ListSerializer {
             ptr: ptr,
-            opts: opts,
             default_calls: default_calls,
             recursion: recursion,
             default: default,
@@ -48,12 +45,11 @@ impl<'p> Serialize for ListSerializer {
             let elem = unsafe { *(*(self.ptr as *mut pyo3::ffi::PyListObject)).ob_item.add(i) };
             if ob_type!(elem) != type_ptr {
                 type_ptr = ob_type!(elem);
-                ob_type = pyobject_to_obtype(elem, self.opts);
+                ob_type = pyobject_to_obtype(elem);
             }
             seq.serialize_element(&PyObjectSerializer::with_obtype(
                 elem,
                 ob_type,
-                self.opts,
                 self.default_calls,
                 self.recursion + 1,
                 self.default,
