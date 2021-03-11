@@ -169,7 +169,7 @@ impl<'p> Serialize for PyObjectSerializer {
                 Ok(val) => val.serialize(serializer),
                 Err(TimeError::HasTimezone) => err!(TIME_HAS_TZINFO),
             },
-            ObType::Uuid => UUID::new(self.ptr).serialize(serializer),
+            ObType::Uuid => Uuid::new(self.ptr).serialize(serializer),
             ObType::Dict => {
                 if unlikely!(self.recursion == RECURSION_LIMIT) {
                     err!(RECURSION_LIMIT_REACHED)

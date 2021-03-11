@@ -7,13 +7,13 @@ use std::{io::Write, os::raw::c_uchar};
 
 pub type UUIDBuffer = smallvec::SmallVec<[u8; 64]>;
 
-pub struct UUID {
+pub struct Uuid {
     ptr: *mut pyo3::ffi::PyObject,
 }
 
-impl UUID {
+impl Uuid {
     pub fn new(ptr: *mut pyo3::ffi::PyObject) -> Self {
-        UUID { ptr: ptr }
+        Uuid { ptr: ptr }
     }
     pub fn write_buf(&self, buf: &mut UUIDBuffer) {
         let value: u128;
@@ -49,7 +49,7 @@ impl UUID {
         buf.extend_from_slice(&hexadecimal[20..]);
     }
 }
-impl<'p> Serialize for UUID {
+impl<'p> Serialize for Uuid {
     #[inline(never)]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

@@ -38,7 +38,6 @@ bytecount = { version = "0.6", default_features = false, features = [
     "runtime-dispatch-simd"
 ] }
 http = "0.2"
-inlinable_string = "0.1"
 itoa = { version = "0.4", default_features = false }
 once_cell = "1.7"
 pyo3 = { git = "https://github.com/PyO3/pyo3", default-features = false, features = [
@@ -50,7 +49,6 @@ reqwest = { git = "https://github.com/seanmonstar/reqwest", default-features = f
     "rustls-tls",
     "multipart"
 ] }
-ryu = "1"
 serde = "1.0"
 serde_json = { path = "./json", default_features = false, features = ["std"] }
 smallvec = { version = "1.6", default_features = false, features = ["const_generics", "union", "specialization", "write"] }

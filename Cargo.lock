@@ -194,12 +194,10 @@ dependencies = [
  "bytecount",
  "encoding_rs",
  "http",
- "inlinable_string",
  "itoa",
  "once_cell",
  "pyo3",
  "reqwest",
- "ryu",
  "serde",
  "serde_json 1.0.53",
  "smallvec",
@@ -321,12 +319,6 @@ dependencies = [
  "syn",
  "unindent",
 ]
-
-[[package]]
-name = "inlinable_string"
-version = "0.1.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3094308123a0e9fd59659ce45e22de9f53fc1d2ac6e1feb9fef988e4f76cad77"
 
 [[package]]
 name = "instant"
