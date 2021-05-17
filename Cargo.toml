@@ -66,6 +66,7 @@ hyper = { git = "https://github.com/hyperium/hyper", default-features = false, f
     "http1",
     "http2"
 ] }
+hyper-rustls = { git = "https://github.com/ctz/hyper-rustls" }
 
 [profile.release]
 codegen-units = 1

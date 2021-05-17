@@ -155,28 +155,16 @@ impl<'de> Visitor<'de> for JsonValue {
                 pykey = unicode_from_str(&key);
                 pyhash = hash_str(pykey);
             }
-            println!(
-                "before panic: {:?} {:?} {:?} {:?} {:?}",
-                key, dict_ptr, pykey, value, pyhash
-            );
-            println!(
-                "{} {} {}",
-                dict_ptr.is_null(),
-                pykey.is_null(),
-                value.as_ptr().is_null()
-            );
-            let thing = ffi!(_PyDict_SetItem_KnownHash(
+            ffi!(_PyDict_SetItem_KnownHash(
                 dict_ptr,
                 pykey,
                 value.as_ptr(),
                 pyhash
             ));
-            println!("after panic? {}", thing);
             // counter Py_INCREF in insertdict
             ffi!(Py_DECREF(pykey));
             ffi!(Py_DECREF(value.as_ptr()));
         }
-        println!("ok");
         Ok(nonnull!(dict_ptr))
     }
 }

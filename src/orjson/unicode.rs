@@ -69,7 +69,6 @@ pub fn unicode_from_str(buf: &str) -> *mut pyo3::ffi::PyObject {
         let num_chars = bytecount::num_chars(buf.as_bytes()) as isize;
         match find_str_kind(buf, num_chars as usize) {
             PyUnicodeKind::Ascii => unsafe {
-                println!("ascii");
                 let ptr = ffi!(PyUnicode_New(len as isize, 127));
                 let data_ptr = ptr.cast::<PyASCIIObject>().offset(1) as *mut u8;
                 core::ptr::copy_nonoverlapping(buf.as_ptr(), data_ptr, len);
@@ -78,7 +77,6 @@ pub fn unicode_from_str(buf: &str) -> *mut pyo3::ffi::PyObject {
                 ptr
             },
             PyUnicodeKind::OneByte => unsafe {
-                println!("one byte");
                 PyUnicode_DecodeUTF8(
                     buf.as_bytes().as_ptr() as *const c_char,
                     buf.as_bytes().len() as isize,
@@ -86,7 +84,6 @@ pub fn unicode_from_str(buf: &str) -> *mut pyo3::ffi::PyObject {
                 )
             },
             PyUnicodeKind::TwoByte => unsafe {
-                println!("two byte");
                 let ptr = ffi!(PyUnicode_New(num_chars, 65535));
                 (*ptr.cast::<PyASCIIObject>()).length = num_chars;
                 let mut data_ptr = ptr.cast::<PyCompactUnicodeObject>().offset(1) as *mut u16;
@@ -98,7 +95,6 @@ pub fn unicode_from_str(buf: &str) -> *mut pyo3::ffi::PyObject {
                 ptr
             },
             PyUnicodeKind::FourByte => unsafe {
-                println!("four byte");
                 let ptr = ffi!(PyUnicode_New(num_chars, 1114111));
                 (*ptr.cast::<PyASCIIObject>()).length = num_chars;
                 let mut data_ptr = ptr.cast::<PyCompactUnicodeObject>().offset(1) as *mut u32;

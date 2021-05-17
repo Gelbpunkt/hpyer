@@ -1,5 +1,4 @@
 #![feature(core_intrinsics)]
-#![feature(const_fn)]
 #![allow(unused_unsafe)]
 #![allow(clippy::missing_safety_doc)]
 #![allow(clippy::redundant_field_names)]

@@ -3,7 +3,7 @@ use pyo3::{
     exceptions::PyValueError,
     prelude::{pyclass, pymethods},
     types::{PyAny, PyDict},
-    AsPyPointer, IntoPy, PyObject, PyResult, Python,
+    AsPyPointer, IntoPy, PyCell, PyObject, PyResult, Python,
 };
 use reqwest::{multipart::Form, Client, Response, Url};
 
@@ -70,7 +70,6 @@ impl ClientSession {
             if kwargs.contains("json")? {
                 let json = kwargs.get_item("json").unwrap();
                 let serialized = unsafe { dumps(json.as_ptr()) }?;
-                println!("using json: {:?}", &serialized);
                 builder = builder
                     .body(serialized)
                     .header("Content-Type", "application/json");
@@ -257,14 +256,12 @@ impl ClientResponse {
 
             match bytes {
                 Ok(bytes) => {
-                    println!("before: {}", std::str::from_utf8(&bytes).unwrap());
+                    let gil = Python::acquire_gil();
+                    let py = gil.python();
                     let json = unsafe { loads(&bytes) };
-                    println!("after");
 
                     match json {
                         Ok(json) => {
-                            let gil = Python::acquire_gil();
-                            let py = gil.python();
                             let res: &PyAny = unsafe { py.from_owned_ptr(json) };
                             let sr = fut.getattr(py, "set_result").unwrap();
 
