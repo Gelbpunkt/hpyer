@@ -227,7 +227,7 @@ checksum = "05842d0d43232b23ccb7060ecb0f0626922c21f30012e97b767b30afd4a5d4b9"
 [[package]]
 name = "hyper"
 version = "0.14.7"
-source = "git+https://github.com/hyperium/hyper#960a69a5878ede82c56f50ac1444a9e75e885a8f"
+source = "git+https://github.com/hyperium/hyper#be9677a1e782d33c4402772e0fc4ef0a4c49d507"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -558,9 +558,9 @@ checksum = "dbf0c48bc1d91375ae5c3cd81e3722dff1abcf81a30960240640d223f59fe0e5"
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.26"
+version = "1.0.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a152013215dca273577e18d2bf00fa862b89b24169fb78c4c95aeb07992c9cec"
+checksum = "f0d8caf72986c1a598726adc988bb5984792ef84f5ee5aa50209145ee8077038"
 dependencies = [
  "unicode-xid",
 ]
@@ -568,7 +568,7 @@ dependencies = [
 [[package]]
 name = "pyo3"
 version = "0.13.2"
-source = "git+https://github.com/PyO3/pyo3#d9beb1c11f0cf850763fa693c8e54b7b31200e8d"
+source = "git+https://github.com/PyO3/pyo3#8bb72a711ae503b12534a72555639d35dc0ec7d2"
 dependencies = [
  "cfg-if 1.0.0",
  "indoc",
@@ -582,7 +582,7 @@ dependencies = [
 [[package]]
 name = "pyo3-macros"
 version = "0.13.2"
-source = "git+https://github.com/PyO3/pyo3#d9beb1c11f0cf850763fa693c8e54b7b31200e8d"
+source = "git+https://github.com/PyO3/pyo3#8bb72a711ae503b12534a72555639d35dc0ec7d2"
 dependencies = [
  "pyo3-macros-backend",
  "quote",
@@ -592,7 +592,7 @@ dependencies = [
 [[package]]
 name = "pyo3-macros-backend"
 version = "0.13.2"
-source = "git+https://github.com/PyO3/pyo3#d9beb1c11f0cf850763fa693c8e54b7b31200e8d"
+source = "git+https://github.com/PyO3/pyo3#8bb72a711ae503b12534a72555639d35dc0ec7d2"
 dependencies = [
  "proc-macro2",
  "quote",
