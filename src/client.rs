@@ -1,16 +1,16 @@
 use http::{HeaderMap, Method, StatusCode, Version};
 use pyo3::{
     exceptions::PyValueError,
-    prelude::{pyclass, pymethods},
+    prelude::{pyclass, pymethods, pyproto},
     types::{PyAny, PyDict},
-    AsPyPointer, IntoPy, PyCell, PyObject, PyResult, Python,
+    AsPyPointer, IntoPy, PyAsyncProtocol, PyCell, PyObject, PyRef, PyRefMut, PyResult, Python, PyIterProtocol
 };
-use reqwest::{multipart::Form, Client, Response, Url};
+use reqwest::{multipart::Form, Client, Request, Response, Url};
 
 use std::{collections::HashMap, convert::TryFrom};
 
 use crate::{
-    asyncio::{create_future, set_fut_exc, set_fut_result},
+    asyncio::{create_future, set_fut_exc, set_fut_result, set_fut_result_none},
     error::Error,
     orjson::{dumps, loads},
     runtime::RUNTIME,
@@ -20,6 +20,81 @@ use crate::{
 #[pyclass]
 pub struct ClientSession {
     client: Client,
+}
+
+#[pymethods]
+impl ClientRequest {
+    fn start_req(&mut self) -> PyResult<()> {
+        let (fut, res_fut, loop_) = create_future()?;
+        let client = self.client.take().unwrap();
+        let req = self.req.take().unwrap();
+        self.fut = Some(res_fut);
+
+        RUNTIME.spawn(async move {
+            let resp = client.execute(req).await;
+
+            match resp {
+                Ok(r) => {
+                    let gil = Python::acquire_gil();
+                    let py = gil.python();
+                    let resp = ClientResponse::new(r).into_py(py);
+                    let _ = set_fut_result(loop_, fut, resp);
+                }
+                Err(e) => {
+                    let _ = set_fut_exc(loop_, fut, Error::new_err(e.to_string()));
+                }
+            }
+        });
+
+        Ok(())
+    }
+
+    fn __aenter__(mut slf: PyRefMut<Self>) -> PyResult<PyRefMut<Self>> {
+        slf.start_req()?;
+        Ok(slf)
+    }
+
+    fn __aexit__(
+        &self,
+        _exc_type: PyObject,
+        _exc_value: PyObject,
+        _traceback: PyObject,
+    ) -> PyResult<PyObject> {
+        let (fut, res_fut, loop_) = create_future()?;
+        let _ = set_fut_result_none(loop_, fut);
+        Ok(res_fut)
+    }
+}
+
+#[pyproto]
+impl PyAsyncProtocol for ClientRequest {
+    fn __await__(mut slf: PyRefMut<Self>) -> PyResult<PyRefMut<Self>> {
+        slf.start_req()?;
+        Ok(slf)
+    }
+}
+
+#[pyproto]
+impl PyIterProtocol for ClientRequest {
+    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
+        slf
+    }
+    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyObject> {
+        if !slf.polled {
+            slf.polled = true;
+            Some(slf.fut.as_ref().unwrap().clone())
+        } else {
+            None
+        }
+    }
+}
+
+#[pyclass]
+pub struct ClientRequest {
+    req: Option<Request>,
+    client: Option<Client>,
+    fut: Option<PyObject>,
+    polled: bool,
 }
 
 #[pymethods]
@@ -35,9 +110,7 @@ impl ClientSession {
 
     // https://github.com/aio-libs/aiohttp/blob/master/aiohttp/client.py#L306
     #[args(kwargs = "**")]
-    fn request(&self, method: &str, url: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
-        let (fut, res_fut, loop_) = create_future()?;
-
+    fn request(&self, method: &str, url: &str, kwargs: Option<&PyDict>) -> PyResult<ClientRequest> {
         let method = match Method::try_from(method) {
             Ok(m) => m,
             Err(e) => return Err(PyValueError::new_err(e.to_string())),
@@ -101,64 +174,53 @@ impl ClientSession {
         let req = builder.build().unwrap();
         let client = self.client.clone();
 
-        RUNTIME.spawn(async move {
-            let resp = client.execute(req).await;
-
-            match resp {
-                Ok(r) => {
-                    let gil = Python::acquire_gil();
-                    let py = gil.python();
-                    let resp = ClientResponse::new(r).into_py(py);
-                    let _ = set_fut_result(loop_, fut, resp);
-                }
-                Err(e) => {
-                    let _ = set_fut_exc(loop_, fut, Error::new_err(e.to_string()));
-                }
-            }
-        });
-
-        Ok(res_fut)
+        Ok(ClientRequest {
+            req: Some(req),
+            client: Some(client),
+            fut: None,
+            polled: false,
+        })
     }
 
     #[args(kwargs = "**")]
     #[inline]
-    fn get(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn get(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<ClientRequest> {
         self.request("GET", url, kwargs)
     }
 
     #[args(kwargs = "**")]
     #[inline]
-    fn options(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn options(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<ClientRequest> {
         self.request("OPTIONS", url, kwargs)
     }
 
     #[args(kwargs = "**")]
     #[inline]
-    fn head(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn head(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<ClientRequest> {
         self.request("HEAD", url, kwargs)
     }
 
     #[args(kwargs = "**")]
     #[inline]
-    fn post(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn post(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<ClientRequest> {
         self.request("POST", url, kwargs)
     }
 
     #[args(kwargs = "**")]
     #[inline]
-    fn put(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn put(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<ClientRequest> {
         self.request("PUT", url, kwargs)
     }
 
     #[args(kwargs = "**")]
     #[inline]
-    fn patch(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn patch(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<ClientRequest> {
         self.request("PATCH", url, kwargs)
     }
 
     #[args(kwargs = "**")]
     #[inline]
-    fn delete(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<PyObject> {
+    fn delete(&self, url: &str, kwargs: Option<&PyDict>) -> PyResult<ClientRequest> {
         self.request("DELETE", url, kwargs)
     }
 }
@@ -288,7 +350,7 @@ impl ClientResponse {
 
     #[getter]
     fn version(&self) -> HttpVersion {
-        HttpVersion::from(self.version)
+        self.version.into()
     }
 
     #[getter]
