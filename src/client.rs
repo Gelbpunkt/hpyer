@@ -3,7 +3,8 @@ use pyo3::{
     exceptions::PyValueError,
     prelude::{pyclass, pymethods, pyproto},
     types::{PyAny, PyDict},
-    AsPyPointer, IntoPy, PyAsyncProtocol, PyCell, PyObject, PyRef, PyRefMut, PyResult, Python, PyIterProtocol
+    AsPyPointer, IntoPy, PyAsyncProtocol, PyCell, PyIterProtocol, PyObject, PyRef, PyRefMut,
+    PyResult, Python,
 };
 use reqwest::{multipart::Form, Client, Request, Response, Url};
 
@@ -20,6 +21,14 @@ use crate::{
 #[pyclass]
 pub struct ClientSession {
     client: Client,
+}
+
+#[pyclass]
+pub struct ClientRequest {
+    req: Option<Request>,
+    client: Option<Client>,
+    fut: Option<PyObject>,
+    polled: bool,
 }
 
 #[pymethods]
@@ -50,7 +59,6 @@ impl ClientRequest {
     }
 
     fn __aenter__(mut slf: PyRefMut<Self>) -> PyResult<PyRefMut<Self>> {
-        slf.start_req()?;
         Ok(slf)
     }
 
@@ -68,9 +76,18 @@ impl ClientRequest {
 
 #[pyproto]
 impl PyAsyncProtocol for ClientRequest {
-    fn __await__(mut slf: PyRefMut<Self>) -> PyResult<PyRefMut<Self>> {
+    fn __await__(mut slf: PyRefMut<Self>) -> PyResult<PyObject> {
         slf.start_req()?;
-        Ok(slf)
+        let gil = Python::acquire_gil();
+        let py = gil.python();
+        Ok(slf
+            .fut
+            .as_ref()
+            .unwrap()
+            .getattr(py, "__await__")
+            .unwrap()
+            .call0(py)
+            .unwrap())
     }
 }
 
@@ -87,14 +104,6 @@ impl PyIterProtocol for ClientRequest {
             None
         }
     }
-}
-
-#[pyclass]
-pub struct ClientRequest {
-    req: Option<Request>,
-    client: Option<Client>,
-    fut: Option<PyObject>,
-    polled: bool,
 }
 
 #[pymethods]
