@@ -3,8 +3,7 @@ use pyo3::{
     exceptions::PyValueError,
     prelude::{pyclass, pymethods, pyproto},
     types::{PyAny, PyDict},
-    AsPyPointer, IntoPy, PyAsyncProtocol, PyCell, PyIterProtocol, PyObject, PyRef, PyRefMut,
-    PyResult, Python,
+    AsPyPointer, IntoPy, PyAsyncProtocol, PyCell, PyObject, PyRef, PyRefMut, PyResult, Python,
 };
 use reqwest::{multipart::Form, Client, Request, Response, Url};
 
@@ -28,7 +27,6 @@ pub struct ClientRequest {
     req: Option<Request>,
     client: Option<Client>,
     fut: Option<PyObject>,
-    polled: bool,
 }
 
 #[pymethods]
@@ -58,7 +56,7 @@ impl ClientRequest {
         Ok(())
     }
 
-    fn __aenter__(mut slf: PyRefMut<Self>) -> PyResult<PyRefMut<Self>> {
+    fn __aenter__(slf: PyRef<Self>) -> PyResult<PyRef<Self>> {
         Ok(slf)
     }
 
@@ -78,8 +76,7 @@ impl ClientRequest {
 impl PyAsyncProtocol for ClientRequest {
     fn __await__(mut slf: PyRefMut<Self>) -> PyResult<PyObject> {
         slf.start_req()?;
-        let gil = Python::acquire_gil();
-        let py = gil.python();
+        let py = slf.py();
         Ok(slf
             .fut
             .as_ref()
@@ -88,21 +85,6 @@ impl PyAsyncProtocol for ClientRequest {
             .unwrap()
             .call0(py)
             .unwrap())
-    }
-}
-
-#[pyproto]
-impl PyIterProtocol for ClientRequest {
-    fn __iter__(slf: PyRef<Self>) -> PyRef<Self> {
-        slf
-    }
-    fn __next__(mut slf: PyRefMut<Self>) -> Option<PyObject> {
-        if !slf.polled {
-            slf.polled = true;
-            Some(slf.fut.as_ref().unwrap().clone())
-        } else {
-            None
-        }
     }
 }
 
@@ -187,7 +169,6 @@ impl ClientSession {
             req: Some(req),
             client: Some(client),
             fut: None,
-            polled: false,
         })
     }
 
