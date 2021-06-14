@@ -227,7 +227,7 @@ checksum = "6456b8a6c8f33fee7d958fcd1b60d55b11940a79e63ae87013e6d22e26034440"
 [[package]]
 name = "hyper"
 version = "0.14.9"
-source = "git+https://github.com/hyperium/hyper#ea8b0cd86efe7543d9f6d7d368b2596c7341fa76"
+source = "git+https://github.com/hyperium/hyper#08b2138e4036c5ae3e4c6f5c85763d45fb869922"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -355,9 +355,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.96"
+version = "0.2.97"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5600b4e6efc5421841a2138a6b082e07fe12f9aaa12783d50e5d13325b26b4fc"
+checksum = "12b8adadd720df158f4d70dfe7ccc6adb0472d7c55ca83445f6a5ab3e36f8fb6"
 
 [[package]]
 name = "libm"
@@ -454,9 +454,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.7.2"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af8b08b04175473088b46763e51ee54da5f9a164bc162f615b91bc179dbf15a3"
+checksum = "692fcb63b64b1758029e0a96ee63e049ce8c5948587f2f7208df04625e5f6b56"
 
 [[package]]
 name = "packed_simd_2"
@@ -548,7 +548,7 @@ dependencies = [
 [[package]]
 name = "pyo3"
 version = "0.13.2"
-source = "git+https://github.com/PyO3/pyo3#b081e37de5a6a63c9f19cfcc4e94ed7c9f58c0fc"
+source = "git+https://github.com/PyO3/pyo3#9693604da76593c88ee6d2ad6334b1f13cfdcd2e"
 dependencies = [
  "cfg-if 1.0.0",
  "indoc",
@@ -563,12 +563,12 @@ dependencies = [
 [[package]]
 name = "pyo3-build-config"
 version = "0.14.0-alpha.0"
-source = "git+https://github.com/PyO3/pyo3#b081e37de5a6a63c9f19cfcc4e94ed7c9f58c0fc"
+source = "git+https://github.com/PyO3/pyo3#9693604da76593c88ee6d2ad6334b1f13cfdcd2e"
 
 [[package]]
 name = "pyo3-macros"
 version = "0.13.2"
-source = "git+https://github.com/PyO3/pyo3#b081e37de5a6a63c9f19cfcc4e94ed7c9f58c0fc"
+source = "git+https://github.com/PyO3/pyo3#9693604da76593c88ee6d2ad6334b1f13cfdcd2e"
 dependencies = [
  "pyo3-macros-backend",
  "quote",
@@ -578,7 +578,7 @@ dependencies = [
 [[package]]
 name = "pyo3-macros-backend"
 version = "0.13.2"
-source = "git+https://github.com/PyO3/pyo3#b081e37de5a6a63c9f19cfcc4e94ed7c9f58c0fc"
+source = "git+https://github.com/PyO3/pyo3#9693604da76593c88ee6d2ad6334b1f13cfdcd2e"
 dependencies = [
  "proc-macro2",
  "pyo3-build-config",
