@@ -12,7 +12,6 @@ use std::{collections::HashMap, convert::TryFrom};
 use crate::{
     asyncio::{create_future, set_fut_exc, set_fut_result, set_fut_result_none},
     error::Error,
-    orjson::{dumps, loads},
     runtime::RUNTIME,
     types::HttpVersion,
 };
@@ -133,7 +132,7 @@ impl ClientSession {
         if let Some(kwargs) = kwargs {
             if kwargs.contains("json")? {
                 let json = kwargs.get_item("json").unwrap();
-                let serialized = unsafe { dumps(json.as_ptr()) }?;
+                let serialized = unsafe { orjson::dumps(json.as_ptr()) }?;
                 builder = builder
                     .body(serialized)
                     .header("Content-Type", "application/json");
@@ -310,7 +309,7 @@ impl ClientResponse {
                 Ok(bytes) => {
                     let gil = Python::acquire_gil();
                     let py = gil.python();
-                    let json = unsafe { loads(&bytes) };
+                    let json = unsafe { orjson::loads(&bytes) };
 
                     match json {
                         Ok(json) => {
