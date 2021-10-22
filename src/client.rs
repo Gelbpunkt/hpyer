@@ -3,7 +3,7 @@ use pyo3::{
     exceptions::PyValueError,
     prelude::{pyclass, pymethods, pyproto},
     types::{PyAny, PyDict},
-    AsPyPointer, IntoPy, PyAsyncProtocol, PyCell, PyObject, PyRef, PyRefMut, PyResult, Python,
+    AsPyPointer, IntoPy, PyAsyncProtocol, PyObject, PyRef, PyRefMut, PyResult, Python,
 };
 use reqwest::{multipart::Form, Client, Request, Response, Url};
 

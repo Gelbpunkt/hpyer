@@ -47,7 +47,11 @@ pyo3 = { git = "https://github.com/PyO3/pyo3", default-features = false, feature
 ] }
 reqwest = { git = "https://github.com/seanmonstar/reqwest", default-features = false, features = [
     "rustls-tls",
-    "multipart"
+    "multipart",
+    "trust-dns",
+    "gzip",
+    "brotli",
+    "deflate"
 ] }
 serde = "1.0"
 serde_json = { path = "./json", default_features = false, features = ["std"] }
@@ -60,12 +64,7 @@ wyhash = "0.5"
 encoding_rs = { version = "0.8", features = ["simd-accel"] }
 
 [patch.crates-io]
-hyper = { git = "https://github.com/hyperium/hyper", default-features = false, features = [
-    "client",
-    "tcp",
-    "http1",
-    "http2"
-] }
+hyper = { git = "https://github.com/hyperium/hyper" }
 hyper-rustls = { git = "https://github.com/ctz/hyper-rustls" }
 
 [profile.release]

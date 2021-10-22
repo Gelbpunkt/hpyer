@@ -1,5 +1,5 @@
 use pyo3::{
-    prelude::{pyclass, pyproto, PyCell},
+    prelude::{pyclass, pyproto},
     PyObjectProtocol,
 };
 

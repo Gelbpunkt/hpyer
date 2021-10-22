@@ -9,7 +9,7 @@ async def main():
     async with session.post("https://httpbin.org/anything", json={"hello": "world", "please": {"not": "you"}}, params={"ay": "b"}, headers={"Authorization": "yolo"}) as req:
         print(await req.json())
 
-    req = await session.post("https://google.com")
+    req = await session.get("https://google.com")
     print(req.status)
 
 
